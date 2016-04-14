@@ -24,6 +24,8 @@ initialWd = getwd()
 #hardcoded test variables
 inputRasterName = paste0("C:/Users/ezzjfr/post_doc/data/oxford_lidar/DTM","/", "ox_Lidar_AND_osDTM5_5m_esri_slope.tif")
 inputRasterName = paste0("C:/Users/ezzjfr/post_doc/data/oxford_flickr/cumul_views/", "cumulativeViewshed_dtm5_NEW_500m_1st_Jan_upto_11th_Jan.tif")
+inputRasterName = paste0("C:/Users/ezzjfr/post_doc/data/spatial_accuracy/Lidar_DTM_downsampled_to_5m_spatial_accuracy.tif")
+inputRasterName = paste0("C:/Users/ezzjfr/post_doc/data/spatial_accuracy/Lidar_slope.tif")
 #inputRasterName = paste0("C:/temp3/","flickInter.tif")
 
 inputRaster = readGDAL(inputRasterName)
@@ -64,7 +66,7 @@ rc
 
 
 #export data to file
-outFile = "reclassRasterSlope.tif";
+outFile = "reclassedRasterSlope.tif";
 outputRasterModel = writeGDAL(as(rc, 'SpatialGridDataFrame') , outFile, drivername="GTiff", type="Int32")
 
 # wps.out: id = outputRasterModel, type = tiff, title = Reclassifier raster;

@@ -49,7 +49,7 @@ initialWd = getwd()
 
 # wps.off; #Hard-coded test data
 
-inputPointsDir = "C:/Users/ezzjfr/post_doc/data/"
+inputPointsDir = "C:/Users/ezzjfr/post_doc/data/spatial_accuracy/"
 inputPointsFilename ="Flickr_for_spatial_accuracy"
 
 baseDemFilename ="base_dem.tif"

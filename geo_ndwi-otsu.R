@@ -69,7 +69,7 @@ outputRasterModel = writeGDAL(as(mndwiRaster, 'SpatialGridDataFrame') , outFile,
 
 outFile = "mndwiRasterDOSReflectanceNDVI_otsu_matlab.tif";
 #export the thresholded value 
-outputRasterModel = writeGDAL(as(rc2, 'SpatialGridDataFrame') , outFile, drivername="GTiff") # this should probably be an integer raster
+outputRasterModel = writeGDAL(as(rc2, 'SpatialGridDataFrame') , outFile, drivername="GTiff", type="Int32") # this should probably be an integer raster
 
 # wps.out: id = outputRasterModel, type = tiff, title = Reclassifier raster;
 
