@@ -24,7 +24,6 @@ initialWd = getwd()
 
 #hardcoded test variables
 inputRasterName = paste0("C:/Users/ezzjfr/post_doc/data/spatial_accuracy","/", "lsat_DOSReflectance_b1-7_spatial_accuracy.tif")
-#inputRasterName = paste0("C:/Users/ezzjfr/post_doc/data/oxford_landsat_8/Jan_7","/", "lsat_DOSReflectance_b1-7_oxver2.tif")
 
 inputRasterStack = stack(inputRasterName)
 # finished with hardcoding test variables, turn wps back on
