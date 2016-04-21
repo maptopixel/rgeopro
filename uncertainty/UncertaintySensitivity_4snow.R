@@ -83,7 +83,7 @@ BasedemExtentPoly = as(extent(baseElevationModel), "SpatialPolygons")
 flickR.u=c(2.5,5,10,15) # as 68% halo (i.e 1sd) 
 ###
  
-CumViewShed.u<-function(VP=ViewPoints,u=flickR.u[1],vect=TRUE,cl=rclmat.flickR){
+CumViewShed.u<-function(VP=ViewPoints,u=flickR.u[1],vect=TRUE,cl=rclmat.flickR, BasedemExtentPolyc= BasedemExtentPoly,ncellsc=ncells,macDistance=maxDistance,grdc=grd, demProjectionc= demProjection){
 	#
 	mapCalc <- function(los, productRaster){
   #function to add up the viewshed layers
@@ -110,7 +110,7 @@ CumViewShed.u<-function(VP=ViewPoints,u=flickR.u[1],vect=TRUE,cl=rclmat.flickR){
 	VP=SpatialPoints(AA, proj4string=CRS(proj4string(VP)), bbox = NULL)
 	
 	#crop the points to the dem extent
-demExtentPoly = BasedemExtentPoly#as(extent(baseElevationModel), "SpatialPolygons") 
+demExtentPoly = BasedemExtentPolyc#as(extent(baseElevationModel), "SpatialPolygons") 
 	 proj4string(demExtentPoly) = proj4string(VP)
     VP = crop(VP,demExtentPoly)
 
@@ -121,11 +121,11 @@ demExtentPoly = BasedemExtentPoly#as(extent(baseElevationModel), "SpatialPolygon
 	coordsY = aFrame[["coords.x2"]]
 	coords = cbind(coordsX,coordsY)
 #  ini	 
-sumV <- rep(0, ncells)
+sumV <- rep(0, ncellsc)
 uniqueOwners = unique(aFrame$ownerNum)
 
 #First viewshed
-execGRASS("r.viewshed", parameters = list(input = "DEM", output = "cumulativeViewshed", max_distance= maxDistance, coordinates = as.integer(coords[1,])), flags = c("overwrite" , "b","quiet"))
+execGRASS("r.viewshed", parameters = list(input = "DEM", output = "cumulativeViewshed", max_distance= macDistance, coordinates = as.integer(coords[1,])), flags = c("overwrite" , "b","quiet"))
 
 los <- readRAST("cumulativeViewshed")
 #add this firest layer into the cumulative raster
@@ -154,14 +154,14 @@ sumV=rcl(sumV,cl)
 
 # map to sp	
 	if(!vect){
-	sgdf <- SpatialGridDataFrame(grd, data = data.frame(sum=sumV))
-	proj4string(sgdf) = demProjection
+	sgdf <- SpatialGridDataFrame(grdc, data = data.frame(sum=sumV))
+	proj4string(sgdf) = demProjectionc
 		return(sgdf)
 	}
 	else{
 		 return(sumV)
 		}
-} ####
+} #CumViewShed.u
  
 
  # slope and elevation and MNDWI
@@ -194,7 +194,7 @@ WWmndwi=c(-1.57,2.11)
 WWslope=c(0.37,0.37,-1.41,-1.41,-1.41,-1.41)
 WWelev=c(1,1,-4.15,-4.15,-4.15,-4.15)
 WW=list(WWflickr, WWmndwi, WWslope, WWelev)
-Watprior=  0.099  #   nb of traning sample or 0.09 579843/(579843+5306975) mndwi prior? 
+Watprior=  2e-05  #   nb of traning sample or 0.09 579843/(579843+5306975) mndwi prior? 
 #######################100/(579843+5306975) 1.7e-05
 WoEp<-function(flickR, mndwi,slope,elev,wei=WW,prior=Watprior){
 	# WoE has estimated the weights and here is the calculation of the posterior
@@ -206,7 +206,7 @@ WoEp<-function(flickR, mndwi,slope,elev,wei=WW,prior=Watprior){
 	 	for(i in 1:length(w))v[v==i]=w[i]
 	 return(v)
 	 }#attW  exp(logit)
-	 el=exp(log( prior/(1-prior) )+attW(flickR,WW[[1]])+attW(mndwi,WW[[2]])+attW(slope,WW[[3]])+attW(elev,WW[[4]]))
+	 el=exp(log( prior/(1-prior) )+attW(flickR,wei[[1]])+attW(mndwi,wei[[2]])+attW(slope,wei[[3]])+attW(elev,wei[[4]]))
      posterior=el/(1+el)
 return(posterior)
 }
@@ -224,31 +224,27 @@ Sensi=array(0,dim=c(ncells,u1,u2,u3,6),dimnames=list(NULL,paste("soc",1:u1,sep="
 
 ###snow cluster prep
  library(snow)
-  CLusters=rep("localhost",16) # maybe something different ???  type of clusters mpi etc...
-   cl= makeSOCKcluster(CLusters)
-     clusterEvalQ(cl, library(rgeos));  clusterEvalQ(cl, library(maptools));  clusterEvalQ(cl, library(rgdal));  clusterEvalQ(cl, library(spatstat)); clusterEvalQ(cl, library(rgrass7))
-     ; clusterEvalQ(cl, library(raster)); clusterEvalQ(cl, library(sp));
+  #CLusters=rep("localhost",16) # maybe something different ???  type of clusters mpi etc...
+   cl= makeSOCKcluster(2)
+     clusterEvalQ(cl, library(rgeos));  clusterEvalQ(cl, library(maptools));  clusterEvalQ(cl, library(rgdal));  clusterEvalQ(cl, library(spatstat)); clusterEvalQ(cl, library(rgrass7));
+     clusterEvalQ(cl, library(raster)); clusterEvalQ(cl, library(sp));
     
-     clusterCall(cl,
-     function(){loc <<- initGRASS("/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE )
-     	execGRASS("r.in.gdal", flags="o", parameters=list(input=baseDemFilename, output="DEM"))
-     execGRASS("g.region", parameters=list(raster="DEM"))
-     })
+     
      
  ##########
-simul<-function(n){
+simul<-function(n,VPs= ViewPoints, fu= flickR.u,socs=soc, rcfkR= rclmat.flickR,slo=slope.ini, su= slope.u, tops= top, rcls= rclmat.slope, elevi= elev.ini,elu=elev.u, rcle= rclmat.elev, mndwii= mndwi.ini, mu= mndwi.u, eos= eo, rcli= rclmat.mndwi,weis=WW,priors=Watprior){
 		#all objects are looked for the parent frame
 		
 	# simul flickR then cum viewshed then classes	rclmat
-       flickR=CumViewShed.u(VP=ViewPoints,flickR.u[soc],vec=TRUE,cl=rclmat.flickR) # vector
+       flickR=CumViewShed.u(VP=VPs,fu[socs],vec=TRUE,cl=rclfR) # vector
 	# simul slope and elevation then classes
-	   slope=rnclass.vect(vect=slope.ini, u=slope.u[top],cl=rclmat.slope)
-	   elev=rnclass.vect(vect=elev.ini,u=elev.u[top],cl=rclmat.elev)
+	   slope=rnclass.vect(vect=slo, u=su[tops],cl=rcls)
+	   elev=rnclass.vect(vect=elevi,u=elu[tops],cl= rcle)
 	# simul MnDWI then classes
-	   mndwi=rnclass.vect(vect=mndwi.ini,u=mndwi.u[eo],cl=rclmat.mndwi)
+	   mndwi=rnclass.vect(vect=mndwii,u=mu[eos],cl=rcli)
 	      # WoE then 
 	      #resul[,n]=
-	   out=WoEp(flickR, mndwi,slope,elev)   
+	   out=WoEp(flickR, mndwi,slope,elev,wei=weis,prior=priors)   
 	      return(out)
 	}#simul 
 clusterExport(cl,"simul")
@@ -256,7 +252,7 @@ clusterExport(cl,"simul")
      clusterExport(cl, "slope.ini");clusterExport(cl, "slope.u");clusterExport(cl, "rclmat.slope");
     clusterExport(cl, "elev.ini");clusterExport(cl, "elev.u");clusterExport(cl, "rclmat.elev");
      clusterExport(cl, "mndwi.ini");clusterExport(cl, "mndwi.u");clusterExport(cl, "rclmat.mndwi");
-clusterExport(cl,"WW") ; clusterExport(cl,"Watprior") ; 
+clusterExport(cl,"WW"); clusterExport(cl,"Watprior") ; 
 clusterExport(cl,"demProjection") ;clusterExport(cl,"grd") ;clusterExport(cl,"maxDistance") ;
 clusterExport(cl,"baseElevationModel") ;clusterExport(cl,"BasedemExtentPoly") ;
 clusterExport(cl,"ncells") ;clusterExport(cl,"bottomLeftX") ;clusterExport(cl,"bottomLeftY") ;
@@ -264,22 +260,31 @@ clusterExport(cl,"writeViewshedsToDisk")
 clusterExport(cl,"CumViewShed.u")
 clusterExport(cl,"rnclass.vect")
 clusterExport(cl,"WoEp")
+clusterExport(cl,"baseDemFilename")
+#
+clusterCall(cl,
+     function(){loc <<- initGRASS("/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE )
+     	execGRASS("r.in.gdal", flags="o", parameters=list(input=baseDemFilename, output="DEM"))
+     execGRASS("g.region", parameters=list(raster="DEM"))
+     });
 #
 Toutdeb=date()
 cat("debut: ",Toutdeb)
+
 ########testing
-#u1=1;u2=1;u3=1; nDsimul=4
+u1=1;u2=1;u3=1; nDsimul=3
 ###############
 for (soc in 1:u1){ 
 for (top in 1:u2){
 for (eo  in 1:u3){
-		#resul <- matrix(0, nrow=ncells, ncol=nDsimul)
-#for( n in 1:nDsimul) { 
+
 	deb=date()
-	clusterExport(cl,"soc");clusterExport(cl,"top");clusterExport(cl,"eo")
-	resul=parSapply(cl,1:nDsimul,simul)
-	cat("simul ",soc,top,eo," :: ") deb ;date()
-#}#end of nDsimul		
+	clusterExport(cl,"soc");clusterExport(cl,"top");clusterExport(cl,"eo");
+	#debug(simul)
+     resul=parSapply(cl,1:nDsimul,simul)
+	cat("simul ",soc,top,eo," :: ") 
+	deb ;date()
+		
 	# summary simul px x 100 0 in x min Q1 Q2 mean Q3 max
    Sensi[,soc,top,eo,]=t(apply(resul,1,summary))
    
