@@ -229,9 +229,11 @@ Sensi=array(0,dim=c(ncells,u1,u2,u3,6),dimnames=list(NULL,paste("soc",1:u1,sep="
      clusterEvalQ(cl, library(rgeos));  clusterEvalQ(cl, library(maptools));  clusterEvalQ(cl, library(rgdal));  clusterEvalQ(cl, library(spatstat)); clusterEvalQ(cl, library(rgrass7))
      ; clusterEvalQ(cl, library(raster)); clusterEvalQ(cl, library(sp));
     
-     clusterEvalQ(cl,loc <- initGRASS("/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE ))
-     clusterEvalQ(cl,execGRASS("r.in.gdal", flags="o", parameters=list(input=baseDemFilename, output="DEM")))
-     clusterEvalQ(cl,execGRASS("g.region", parameters=list(raster="DEM")))
+     clusterCall(cl,
+     function(){loc <<- initGRASS("/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE )
+     	execGRASS("r.in.gdal", flags="o", parameters=list(input=baseDemFilename, output="DEM"))
+     execGRASS("g.region", parameters=list(raster="DEM"))
+     })
      
  ##########
 simul<-function(n){
