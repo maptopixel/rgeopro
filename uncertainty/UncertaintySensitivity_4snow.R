@@ -228,11 +228,10 @@ Sensi=array(0,dim=c(ncells,u1,u2,u3,6),dimnames=list(NULL,paste("soc",1:u1,sep="
    cl= makeSOCKcluster(2)
      clusterEvalQ(cl, library(rgeos));  clusterEvalQ(cl, library(maptools));  clusterEvalQ(cl, library(rgdal));  clusterEvalQ(cl, library(spatstat)); clusterEvalQ(cl, library(rgrass7));
      clusterEvalQ(cl, library(raster)); clusterEvalQ(cl, library(sp));
-    
-     
+        
      
  ##########
-simul<-function(n,VPs= ViewPoints, fu= flickR.u,socs=soc, rcfkR= rclmat.flickR,slo=slope.ini, su= slope.u, tops= top, rcls= rclmat.slope, elevi= elev.ini,elu=elev.u, rcle= rclmat.elev, mndwii= mndwi.ini, mu= mndwi.u, eos= eo, rcli= rclmat.mndwi,weis=WW,priors=Watprior){
+simul<-function(n,VPs= ViewPoints, fu= flickR.u,socs=soc, rclfR= rclmat.flickR,slo=slope.ini, su= slope.u, tops= top, rcls= rclmat.slope, elevi= elev.ini,elu=elev.u, rcle= rclmat.elev, mndwii= mndwi.ini, mu= mndwi.u, eos= eo, rcli= rclmat.mndwi,weis=WW,priors=Watprior){
 		#all objects are looked for the parent frame
 		
 	# simul flickR then cum viewshed then classes	rclmat
@@ -262,6 +261,7 @@ clusterExport(cl,"rnclass.vect")
 clusterExport(cl,"WoEp")
 clusterExport(cl,"baseDemFilename")
 #
+clusterCall(cl,dir)
 #clusterCall(cl, function(){
      	loc <<- initGRASS("/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE )
      	execGRASS("r.in.gdal", flags="o", parameters=list(input=baseDemFilename, output="DEM"))
