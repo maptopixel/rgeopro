@@ -262,11 +262,11 @@ clusterExport(cl,"rnclass.vect")
 clusterExport(cl,"WoEp")
 clusterExport(cl,"baseDemFilename")
 #
-clusterCall(cl,
-     function(){loc <<- initGRASS("/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE )
+#clusterCall(cl, function(){
+     	loc <<- initGRASS("/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE )
      	execGRASS("r.in.gdal", flags="o", parameters=list(input=baseDemFilename, output="DEM"))
      execGRASS("g.region", parameters=list(raster="DEM"))
-     });
+    # });
 #
 Toutdeb=date()
 cat("debut: ",Toutdeb)
