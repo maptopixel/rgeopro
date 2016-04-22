@@ -192,7 +192,7 @@ WWmndwi=c(-1.57,2.11)
 WWslope=c(0.37,0.37,-1.41,-1.41,-1.41,-1.41)
 WWelev=c(1,1,-4.15,-4.15,-4.15,-4.15)
 WW=list(WWflickr, WWmndwi, WWslope, WWelev)
-Watprior=  0.099  #   nb of traning sample or 0.09 579843/(579843+5306975) mndwi prior? 
+Watprior=  2e-05  #   nb of traning sample or 0.09 579843/(579843+5306975) mndwi prior? 
 #######################
 WoEp<-function(flickR, mndwi,slope,elev,wei=WW,prior=Watprior){
 	# WoE has estimated the weights and here is the calculation of the posterior
@@ -204,7 +204,7 @@ WoEp<-function(flickR, mndwi,slope,elev,wei=WW,prior=Watprior){
 	 	for(i in 1:length(w))v[v==i]=w[i]
 	 return(v)
 	 }#attW  exp(logit)
-	 el=exp(log( prior/(1-prior) )+attW(flickR,WW[[1]])+attW(mndwi,WW[[2]])+attW(slope,WW[[3]])+attW(elev,WW[[4]]))
+	 el=exp(log( prior/(1-prior) )+attW(flickR,wei[[1]])+attW(mndwi,wei[[2]])+attW(slope,wei[[3]])+attW(elev,wei[[4]]))
      posterior=el/(1+el)
 return(posterior)
 }
@@ -214,7 +214,7 @@ return(posterior)
 #or
 nDsimul=100 # evaluations per combination of uncertainties
 u1=4;u2=4;u3=4
-Sensi=array(0,dim=c(ncells,u1,u2,u3,6),dimnames=list(NULL,paste("soc",1:u1,sep=""),paste("top",1:u2,sep=""),paste("eo",1:u3,sep=""),c("Min","Q1","Med","Mean","Q3","Max")))
+Sensi=array(0,dim=c(ncells,u1,u2,u3,7),dimnames=list(NULL,paste("soc",1:u1,sep=""),paste("top",1:u2,sep=""),paste("eo",1:u3,sep=""),c("Min","Q1","Med","Mean","Q3","Max","Var")))
 
 # soc=1;top=1;eo=1
 
@@ -235,8 +235,8 @@ for( n in 1:nDsimul) {
 	
 }#end of nDsimul		
 	# summary simul px x 100 0 in x min Q1 Q2 mean Q3 max
-   Sensi[,soc,top,eo,]=t(apply(resul,1,summary))
-   
+   Sensi[,soc,top,eo,1:6]=t(apply(resul,1,summary))
+   Sensi[,soc,top,eo,7]=t(apply(resul,1,var))
 }# end of u3
 }# end of u2	 
 }# end of u1

@@ -62,14 +62,14 @@ writeViewshedsToDisk = 0; #for debugging after each viewshed calcuation by GRASS
 #########################
 loc <- initGRASS("/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE )
 
-#grasspath="/Applications/GRASS-6.4.app/Contents/MacOS/bin/"
+##grasspath="/Applications/GRASS-6.4.app/Contents/MacOS/bin/"
 
 execGRASS("r.in.gdal", flags="o", parameters=list(input=baseDemFilename, output="DEM"))
 
 execGRASS("g.region", parameters=list(raster="DEM"))
 
  
- # grid
+ ##grid
 grd <- gmeta2grd()
 ncells <- grd@cells.dim[1]*grd@cells.dim[2] #759980
 
@@ -123,7 +123,7 @@ demExtentPoly = BasedemExtentPolyc#as(extent(baseElevationModel), "SpatialPolygo
 #  ini	 
 sumV <- rep(0, ncellsc)
 uniqueOwners = unique(aFrame$ownerNum)
-
+print("first viewshed")
 #First viewshed
 execGRASS("r.viewshed", parameters = list(input = "DEM", output = "cumulativeViewshed", max_distance= macDistance, coordinates = as.integer(coords[1,])), flags = c("overwrite" , "b","quiet"))
 
@@ -139,7 +139,7 @@ for (i in 2:nrow(coords)) {
   #initial cleaning
   #execGRASS("g.remove", parameters = list(type = "raster",name=losLayerName), flags="f")
   #rm(losInR)
-
+print(" viewshed point "); print(i)
   #Compute this shed instance
   execGRASS("r.viewshed", parameters = list(input = "DEM", output = losLayerName, max_distance=maxDistance, coordinates = as.integer(coords[i,])), flags = c("overwrite" , "b","quiet"))
 
@@ -150,6 +150,7 @@ for (i in 2:nrow(coords)) {
   
 }#end of for
 #reclass 
+print(" rcl run")
 sumV=rcl(sumV,cl)
 
 # map to sp	
@@ -216,7 +217,7 @@ return(posterior)
 #or
 nDsimul=100 # evaluations per combination of uncertainties
 u1=4;u2=4;u3=4
-Sensi=array(0,dim=c(ncells,u1,u2,u3,6),dimnames=list(NULL,paste("soc",1:u1,sep=""),paste("top",1:u2,sep=""),paste("eo",1:u3,sep=""),c("Min","Q1","Med","Mean","Q3","Max")))
+Sensi=array(0,dim=c(ncells,u1,u2,u3,7),dimnames=list(NULL,paste("soc",1:u1,sep=""),paste("top",1:u2,sep=""),paste("eo",1:u3,sep=""),c("Min","Q1","Med","Mean","Q3","Max","Var")))
 
 
 ###########################
@@ -261,13 +262,22 @@ clusterExport(cl,"rnclass.vect")
 clusterExport(cl,"WoEp")
 clusterExport(cl,"baseDemFilename")
 #
-clusterCall(cl,dir)
+#clusterCall(cl,dir)
 #clusterCall(cl, function(){
-     	loc <<- initGRASS("/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE )
-     	execGRASS("r.in.gdal", flags="o", parameters=list(input=baseDemFilename, output="DEM"))
-     execGRASS("g.region", parameters=list(raster="DEM"))
+ #    	loc <<- 
+ clusterCall(cl,initGRASS,"/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE )
+ clusterCall(cl,execGRASS,"r.in.gdal", flags="o", parameters=list(input=baseDemFilename, output="DEM"))
+  clusterCall(cl,execGRASS, "g.region", parameters=list(raster="DEM"))
     # });
 #
+clusterCall(cl,fucntion(){grd <<- gmeta2grd()
+ncells <<- grd@cells.dim[1]*grd@cells.dim[2] #759980
+
+bottomLeftX<<-grd@cellcentre.offset[1]
+bottomLeftY<<-grd@cellcentre.offset[2])
+})
+
+
 Toutdeb=date()
 cat("debut: ",Toutdeb)
 
@@ -286,8 +296,8 @@ for (eo  in 1:u3){
 	deb ;date()
 		
 	# summary simul px x 100 0 in x min Q1 Q2 mean Q3 max
-   Sensi[,soc,top,eo,]=t(apply(resul,1,summary))
-   
+   Sensi[,soc,top,eo,1:6]=t(apply(resul,1,summary))
+   Sensi[,soc,top,eo,7]=t(apply(resul,1,var))
 }# end of u3
 }# end of u2	 
 }# end of u1
@@ -300,7 +310,14 @@ Toutdeb;date()
  save(SensiGrid, Sensi,file="simulSpAcc2016.RData")
   
 # fini pour ça
-
+pp<-function(){
+	load("./DataSpatialAccuracy/simulSpAcc2016.RData")
+	#for example
+	SensiGrid@data=data.frame("Mean"=Sensi[,1,1,1,"Mean"])
+	image(SensiGrid["Mean"])
+	SensiGrid@data=data.frame("Mean"=Sensi[,1,1,1,"Mean"])
+	image(SensiGrid["Mean"])
+}
 
 # mise en grid
 
