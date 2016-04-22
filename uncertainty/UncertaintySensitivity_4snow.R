@@ -60,7 +60,7 @@ writeViewshedsToDisk = 0; #for debugging after each viewshed calcuation by GRASS
     demProjection = proj4string(baseElevationModel)
 #/Applications/GRASS-6.4.app/Contents/MacOS/bin/
 #########################
-loc <- initGRASS("/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE )
+loc <- initGRASS("/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=FALSE )
 
 ##grasspath="/Applications/GRASS-6.4.app/Contents/MacOS/bin/"
 
@@ -265,16 +265,17 @@ clusterExport(cl,"baseDemFilename")
 #clusterCall(cl,dir)
 #clusterCall(cl, function(){
  #    	loc <<- 
- clusterCall(cl,initGRASS,"/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE )
+ clusterApply(cl,1:2, function(x)initGRASS("/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=FALSE, location=paste("loc.",x,sep="") ) )
+ 
  clusterCall(cl,execGRASS,"r.in.gdal", flags="o", parameters=list(input=baseDemFilename, output="DEM"))
   clusterCall(cl,execGRASS, "g.region", parameters=list(raster="DEM"))
     # });
 #
-clusterCall(cl,fucntion(){grd <<- gmeta2grd()
+clusterCall(cl,function(){grd <<- gmeta2grd()
 ncells <<- grd@cells.dim[1]*grd@cells.dim[2] #759980
 
 bottomLeftX<<-grd@cellcentre.offset[1]
-bottomLeftY<<-grd@cellcentre.offset[2])
+bottomLeftY<<-grd@cellcentre.offset[2]
 })
 
 
