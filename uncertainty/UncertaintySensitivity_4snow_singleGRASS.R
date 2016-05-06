@@ -20,8 +20,8 @@ library(spatstat); library(rgrass7); library(raster); library(sp);
 
 #setwd("/Users/lgzdl/Documents/Dids/DidsE/R_GIS/R_SpatialAccuracy2016/")
 
-#setwd("./DataSpatialAccuracy")
-setwd("C:/DataSpatialAccuracy")
+setwd("./DataSpatialAccuracy")
+#setwd("C:/DataSpatialAccuracy")
 # uncertainty dim
 #
 # 1st dim 	Social flickr 
@@ -64,7 +64,7 @@ baseElevationModel = readGDAL(baseDemFilename)
 demProjection = proj4string(baseElevationModel)
 #/Applications/GRASS-6.4.app/Contents/MacOS/bin/
 #########################
-loc <- initGRASS("C:/programme/GRASS7.0.svn",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE )
+loc <- initGRASS("/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE )
 
 #grasspath="/Applications/GRASS-6.4.app/Contents/MacOS/bin/"
 
@@ -80,6 +80,7 @@ ncells <- grd@cells.dim[1]*grd@cells.dim[2] #759980
 bottomLeftX = grd@cellcentre.offset[1]
 bottomLeftY = grd@cellcentre.offset[2]
 ###########################################
+
 
 #demBbox = bbox(baseElevationModel)
 BasedemExtentPoly = as(extent(baseElevationModel), "SpatialPolygons")
@@ -129,10 +130,10 @@ CumViewShed.u<-function(VP=ViewPoints,u=flickR.u[1],vect=TRUE,cl=rclmat.flickR, 
   uniqueOwners = unique(aFrame$ownerNum)
   
   aUuid = UUIDgenerate()
-  cat("created uid..", aUuid)
+  #cat("created uid..", aUuid)
   #First viewshed
   cvName = paste0("cv_",aUuid)
-  execGRASS("r.viewshed", parameters = list(input = "DEM", output = cvName, max_distance= macDistance, coordinates = as.integer(coords[1,])), flags = c("overwrite" , "b"))
+  execGRASS("r.viewshed", parameters = list(input = "DEM", output = cvName, max_distance= macDistance, coordinates = as.integer(coords[1,])), flags = c("overwrite" , "b","quiet"))
   
   los <- readRAST(cvName)
   #add this firest layer into the cumulative raster
@@ -145,12 +146,12 @@ CumViewShed.u<-function(VP=ViewPoints,u=flickR.u[1],vect=TRUE,cl=rclmat.flickR, 
     #losLayerName = "cumulativeViewshed"#toString(i)
     losLayerName = cvName
     #initial cleaning
-    #execGRASS("g.remove", parameters = list(type = "raster",name=losLayerName), flags="f")
+    execGRASS("g.remove", parameters = list(type = "raster",name=losLayerName), flags="f")
     #rm(losInR)
     
     #Compute this shed instance
-    execGRASS("r.viewshed", parameters = list(input = "DEM", output = losLayerName, max_distance=maxDistance, coordinates = as.integer(coords[i,])), flags = c("overwrite" , "b"))
-    
+    execGRASS("r.viewshed", parameters = list(input = "DEM", output = losLayerName, max_distance=maxDistance, coordinates = as.integer(coords[i,])), flags = c("overwrite" , "b","quiet"))
+        
     los <- readRAST(losLayerName)
     
     #add it to the cumulative viewshed with map calc
@@ -160,7 +161,7 @@ CumViewShed.u<-function(VP=ViewPoints,u=flickR.u[1],vect=TRUE,cl=rclmat.flickR, 
   #reclass 
   sumV=rcl(sumV,cl)
   
-  cat("..completed view loop..")
+  #cat("..completed view loop..")
   # map to sp	
   if(!vect){
     sgdf <- SpatialGridDataFrame(grdc, data = data.frame(sum=sumV))
@@ -234,8 +235,8 @@ Sensi=array(0,dim=c(ncells,u1,u2,u3,6),dimnames=list(NULL,paste("soc",1:u1,sep="
 ###snow cluster prep
 library(snow)
 #CLusters=rep("localhost",16) # maybe something different ???  type of clusters mpi etc...
-cl= makeSOCKcluster(16, outfile = "C:/snow_out_single_grass_16cluster.txt")
-#cl= makeCluster(12,) 
+#cl= makeSOCKcluster(16, outfile = "C:/snow_out_single_grass_16cluster.txt")
+cl= makeCluster(20,outfile = "") 
 clusterEvalQ(cl, library(rgeos));  clusterEvalQ(cl, library(maptools));  clusterEvalQ(cl, library(rgdal));  clusterEvalQ(cl, library(spatstat)); clusterEvalQ(cl, library(rgrass7));
 clusterEvalQ(cl, library(raster)); clusterEvalQ(cl, library(sp));clusterEvalQ(cl, library(uuid));
 
@@ -273,7 +274,14 @@ clusterExport(cl,"baseDemFilename")
 #
 clusterCall(cl,dir)
 #clusterCall(cl, function(){
-loc <<- initGRASS("C:/programme/GRASS7.0.svn",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE )
+loc <<- initGRASS("/usr/lib/grass70",home=getwd(), gisDbase="GRASS_TEMP", override=TRUE )
+
+
+grassLocName = loc$LOCATION_NAME
+grassMapsetName = loc$MAPSET
+grassDB = loc$GISDBASE
+
+
 execGRASS("r.in.gdal", flags="o", parameters=list(input=baseDemFilename, output="DEM"))
 execGRASS("g.region", parameters=list(raster="DEM"))
 # });
@@ -281,22 +289,39 @@ execGRASS("g.region", parameters=list(raster="DEM"))
 Toutdeb=date()
 cat("debut: ",Toutdeb)
 
+fn <- "*.count"
+unlink(fn)
+file.create("sims.count", showWarnings = TRUE)
+
 ########testing
-u1=1;u2=1;u3=1; nDsimul=14
+u1=4;u2=4;u3=4; nDsimul=100
 ###############
 ptm <- proc.time()
 for (soc in 1:u1){ 
   for (top in 1:u2){
     for (eo  in 1:u3){
-
+      #soc = 1; top = 1; eo = 1;
       deb=date()
       clusterExport(cl,"soc");clusterExport(cl,"top");clusterExport(cl,"eo");
       #debug(simul)
       resul=parSapply(cl,1:nDsimul,simul)
       cat("simul ",soc,top,eo," :: ") 
+      
+      simulCount = paste0("simul_",soc,"_",top,"_",eo)
+      simulCountStr = paste0(simulCount,".count")
+      file.rename(list.files(pattern="*.count"), to =  simulCountStr)
       deb ;date()
+      
+      
       # summary simul px x 100 0 in x min Q1 Q2 mean Q3 max
       Sensi[,soc,top,eo,]=t(apply(resul,1,summary))
+      
+      #clear up the R tmp dir, mostly being used by the RASTER library I think
+      currPath = getwd()
+      setwd("/tmp/") #assuming linux
+      dirs = list.files(pattern="Rtmp*") # asuming no other import R sessions!
+      file.remove(dir(dirs,full.names = TRUE))
+      setwd(currPath)
       
     }# end of u3
   }# end of u2	 
@@ -310,7 +335,7 @@ SensiGrid=lsat
 #SensiGrid@data=data.frame(resul)
 SensiGrid@data=data.frame(Sensi[,2,2,2,])
 summary(Sensi[,1,1,1,"Mean"])
-#save(SensiGrid, Sensi,file="simulSpAcc2016.RData")
+save(SensiGrid, Sensi,file="simulSpAcc2016_20core.RData")
 
 # fini pour ça
 
