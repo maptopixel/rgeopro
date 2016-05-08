@@ -226,7 +226,7 @@ WoEp<-function(flickR, mndwi,slope,elev,wei=WW,prior=Watprior){
 #or
 nDsimul=100 # evaluations per combination of uncertainties
 u1=4;u2=4;u3=4
-Sensi=array(0,dim=c(ncells,u1,u2,u3,6),dimnames=list(NULL,paste("soc",1:u1,sep=""),paste("top",1:u2,sep=""),paste("eo",1:u3,sep=""),c("Min","Q1","Med","Mean","Q3","Max")))
+Sensi=array(0,dim=c(ncells,u1,u2,u3,7),dimnames=list(NULL,paste("soc",1:u1,sep=""),paste("top",1:u2,sep=""),paste("eo",1:u3,sep=""),c("Min","Q1","Med","Mean","Q3","Max","Var")))
 
 
 ###########################
@@ -294,7 +294,7 @@ unlink(fn)
 file.create("sims.count", showWarnings = TRUE)
 
 ########testing
-u1=4;u2=4;u3=4; nDsimul=100
+u1=4;u2=4;u3=4; nDsimul=1000
 ###############
 ptm <- proc.time()
 for (soc in 1:u1){ 
@@ -314,8 +314,8 @@ for (soc in 1:u1){
       
       
       # summary simul px x 100 0 in x min Q1 Q2 mean Q3 max
-      Sensi[,soc,top,eo,]=t(apply(resul,1,summary))
-      
+      Sensi[,soc,top,eo,1:6]=t(apply(resul,1,summary))
+      Sensi[,soc,top,eo,7]=t(apply(resul,1,var))
       #clear up the R tmp dir, mostly being used by the RASTER library I think
       currPath = getwd()
       setwd("/tmp/") #assuming linux
